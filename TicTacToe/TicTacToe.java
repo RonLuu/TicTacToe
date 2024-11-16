@@ -1,9 +1,10 @@
 package TicTacToe;
-
-import java.util.ArrayList;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
 
 // A class to handle to logic of the game
 public class TicTacToe
@@ -13,42 +14,55 @@ public class TicTacToe
     // The maximum turn of the game
     private final int maxPiece = size*size;
     // The number of piece currently in the game
-    private int numOfPiece = 0;
+    private int numOfPiece = 4;
+    // A character to store the player's piece
+    private char p = 'X';
+
+    // A character to store the second player/bot's piece
+    private char b = 'O';
+
     // A scanner to read the input
     private final Scanner scanner;
 
-    // A character to store the recent piece
-    private char c = ' ';
-    // Two integers to store the recent move
-    private int x = -1;
-    private int y = -1;
+    private final Move curMove;
 
-    // A character to store the player's piece
-    private char p;
 
     // A board to draw
     private final Board board;
 
     // A position table to keep track of the pieces
+//    private final char[][] positions = new char[size][size];
+
     private final char[][] positions;
+
     // The final state of the game
     private GameState gameState;
 
-    public TicTacToe()
+    private int counter = 0;
+
+    public TicTacToe() throws FileNotFoundException
     {
         // Initialise the table
-        positions = new char[size][size];
-        fillPosition();
+//        fillPosition();
 
-        // Create the board
+        positions = new char[][]{
+                {' ', 'O', ' '},
+                {' ', 'O', ' '},
+                {' ', 'X', 'X'}
+        };
+
+        // Create the board to represent the game visually
         board = new Board();
         // Draw the board
         board.drawBoard(positions);
+        // Current move at the start of the game (which is nothing)
+        curMove = new Move(' ',-1,-1);
 
         // Get the file for input
-        // File file = new File("src\\TicTacToe\\text2.txt");
+        File file = new File("src\\TicTacToe\\text4.txt");
         // Create a scanner to read the input file
         scanner = new Scanner(System.in);
+
     }
 
     private void fillPosition()
@@ -61,57 +75,165 @@ public class TicTacToe
             }
         }
     }
-    
+
+    // A function to start the game with one player, one bot
     public void startOnePlayer()
     {
+        // While the game hasn't ended
+        while(true)
+        {
+            // Get player 1's move first
+            getMove("Player 1's move: ");
+            makeMove();
+            // After a player move
+            // check if the game has reached the end
+            if (checkEnd())
+            {
+                break;
+            }
 
+            // Get bot's move
+            getBotMove();
+            makeMove();
+            if (checkEnd())
+            {
+                break;
+            }
+        }
     }
 
+    // A function that generate moves for the bot
+    private void getBotMove()
+    {
+        int bestValue = Integer.MAX_VALUE;
+
+        // Move bestMove = new Move(b,-1, -1);
+        System.out.print("Bot's move: ");
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                if (positions[i][j] == ' ')
+                {
+                    int value = minimax(positions, numOfPiece, b, p);
+                    if (value < bestValue)
+                    {
+                        bestValue = value;
+                        curMove.setMove(b,j,i);
+                    }
+                }
+            }
+        }
+
+        System.out.print("O-"+curMove.getX()+","+curMove.getY() + "\n");
+    }
+
+
     // A table to represent the current state of the game
-    // Number of piece to keep an eye on a tie
-    // A character to represent the current player piece
+    // Number of piece to check if it reaches a tie
+    // A character to represent the current player/bot piece
     // A character to represent the player one's piece
     private int minimax(char[][] positions, int numOfPiece, char c, char p)
     {
+        counter++;
+        if (counter == 100)
+        {
+            //System.exit(0);
+        }
         GameState gameState = terminal(positions, numOfPiece, p);
+
         if (gameState != GameState.NOT_END)
         {
+            System.out.println("The game has reached the end");
+            if (gameState == GameState.LOSE)
+            {
+                System.out.println("Bot wins");
+            }
+
+            if (gameState == GameState.WIN)
+            {
+                System.out.println("Player wins");
+            }
+
+            if (gameState == GameState.TIE)
+            {
+                System.out.println("Tie");
+            }
+            System.out.print("");
             return value(gameState);
         }
+        System.out.println("The game hasn't reached the end");
+        System.out.println("\nEntering minimax on " + c + " turn");
+        board.drawBoard(positions);
+        System.out.print("");
 
-        if (checkTurn(c, p) == Player.BOT)
+        if (checkTurn(c) == Player.BOT)
         {
-            int value = Integer.MIN_VALUE;
-            ArrayList<Coordinate> possibleMoves = generateMoves(positions);
-            for(Coordinate coordinate : possibleMoves)
+            System.out.println("It's bot turn now");
+            System.out.print("");
+            int value = Integer.MAX_VALUE;
+            System.out.println("Printing all possible move for bot");
+            ArrayList<Move> possibleMoves = generateMoves(positions, c);
+
+            printPossibleMove(possibleMoves);
+            System.out.print("");
+            for(Move move : possibleMoves)
             {
-                applyAction(positions, coordinate, c);
+                System.out.println("The current value of bot is " + value);
+                System.out.println("The current move of bot is " + move.getPiece() + " at " + move.getX() + ", " + move.getY());
+                System.out.print("");
+                applyAction(positions, move, c);
                 numOfPiece++;
                 c = nextTurn(c);
-
-                value = Integer.max(value, minimax(positions, numOfPiece, c, p));
-
-                unapplyAction(positions, coordinate);
+                board.drawBoard(positions);
+                System.out.print("");
+                value = Integer.min(value, minimax(positions, numOfPiece, c, p));
+                System.out.println("The current value after minimax of bot is " + value);
+                System.out.println();
+                System.out.println("Unapplying bot " + move.getPiece() + " at " + move.getX() + ", " + move.getY());
+                System.out.print("");
+                unapplyAction(positions, move);
+                c = nextTurn(c);
                 numOfPiece--;
+                board.drawBoard(positions);
+                System.out.print("");
             }
 
             return value;
         }
 
-        if (checkTurn(c, p) == Player.PLAYER)
+        if (checkTurn(c) == Player.PLAYER)
         {
-            int value = Integer.MAX_VALUE;
-            ArrayList<Coordinate> possibleMoves = generateMoves(positions);
-            for(Coordinate coordinate : possibleMoves)
+            System.out.println("It's player turn now");
+            System.out.print("");
+            int value = Integer.MIN_VALUE;
+
+            ArrayList<Move> possibleMoves = generateMoves(positions, c);
+            System.out.println("Printing all possible move for player");
+
+            printPossibleMove(possibleMoves);
+            System.out.print("");
+            for(Move move : possibleMoves)
             {
-                applyAction(positions, coordinate, c);
+                System.out.println("The current value is of player is " + value);
+                System.out.println("The current move of bot is " + move.getPiece() + " at " + move.getX() + ", " + move.getY());
+                System.out.print("");
+                applyAction(positions, move, c);
+
                 numOfPiece++;
                 c = nextTurn(c);
-
-                value = Integer.min(value, minimax(positions, numOfPiece, c, p));
-
-                unapplyAction(positions, coordinate);
+                board.drawBoard(positions);
+                System.out.print("");
+                value = Integer.max(value, minimax(positions, numOfPiece, c, p));
+                System.out.println("The current value after minimax of player is " + value);
+                System.out.println();
+                System.out.println("Unapplying player " + move.getPiece() + " at " + move.getX() + ", " + move.getY());
+                System.out.print("");
+                unapplyAction(positions, move);
+                c = nextTurn(c);
                 numOfPiece--;
+                board.drawBoard(positions);
+                System.out.print("");
             }
 
             return value;
@@ -120,9 +242,19 @@ public class TicTacToe
         return -2;
     }
 
-    private void unapplyAction(char[][] positions, Coordinate coordinate)
+    // For debugging purpose
+    private void printPossibleMove(ArrayList<Move> possibleMoves)
     {
-        positions[coordinate.getY()][coordinate.getX()] = ' ';
+        System.out.print(possibleMoves.getFirst().getPiece() + ": ");
+        for(Move move:possibleMoves)
+        {
+            System.out.print(move.getX() + "," + move.getY() +" ");
+        }
+        System.out.println();
+    }
+    private void unapplyAction(char[][] positions, Move move)
+    {
+        positions[move.getY()][move.getX()] = ' ';
     }
     char nextTurn(char c)
     {
@@ -137,65 +269,69 @@ public class TicTacToe
 
         return c;
     }
-    private ArrayList<Coordinate> generateMoves(char[][] positions)
+    private ArrayList<Move> generateMoves(char[][] positions, char c)
     {
-        ArrayList<Coordinate> possibleMoves = new ArrayList<Coordinate>();
+        System.out.println("Generating move now");
+        ArrayList<Move> possibleMoves = new ArrayList<>();
         for (int i = 0; i < size; i++)
         {
             for (int j = 0; j < size; j++)
             {
                 if (positions[i][j] == ' ')
                 {
-                    possibleMoves.add(new Coordinate(j, i));
+                    possibleMoves.add(new Move(c, j, i));
                 }
+
             }
         }
 
         return possibleMoves;
     }
 
-    private void applyAction(char[][] positions, Coordinate coordinate, char c)
+    private void applyAction(char[][] positions, Move move, char c)
     {
-        positions[coordinate.getY()][coordinate.getX()] = c;
+        positions[move.getY()][move.getX()] = c;
     }
+    // By default, if the first player/player wins, GameState is win
+    //             if the second player/bot wins, GameState is lost
     private GameState terminal(char[][] positions, int numOfPiece, char p)
     {
-        if (numOfPiece == maxPiece)
-        {
-            return GameState.TIE;
-        }
 
-        GameState gameState = goingLeft(positions, p);
+        GameState gameState = checkLeft(positions, p);
         if (gameState != GameState.NOT_END)
         {
             return gameState;
         }
 
-        gameState = goingDown(positions, p);
+        gameState = checkDown(positions, p);
         // Check every vertical line
         if (gameState != GameState.NOT_END)
         {
             return gameState;
         }
 
-        gameState = goingDownRight(positions, p);
+        gameState = checkDownRight(positions, p);
         // Check the diagonal line from top left
-        if(goingDownRight(positions, p) != GameState.NOT_END)
+        if(checkDownRight(positions, p) != GameState.NOT_END)
         {
             return gameState;
         }
 
-        gameState = goingUpRight(positions, p);
+        gameState = checkUpRight(positions, p);
         // Check the diagonal line from bottom left
-        if (goingUpRight(positions, p) != GameState.NOT_END)
+        if (checkUpRight(positions, p) != GameState.NOT_END)
         {
             return gameState;
         }
 
+        if (numOfPiece == maxPiece)
+        {
+            return GameState.TIE;
+        }
         return GameState.NOT_END;
     }
-    
-    private Player checkTurn(char c, char p)
+
+    private Player checkTurn(char c)
     {
         // If the recent character is the same as player one's
         // The next turn is for player two
@@ -287,13 +423,14 @@ public class TicTacToe
             {
                 // Check if the current piece is exactly the same as the previous one
                 // The current player is using the opponent's piece
-                if (c != move.charAt(0))
+                if (curMove.getPiece() != move.charAt(0))
                 {
                     // If this is the first move
-                    if (c == ' ')
+                    if (curMove.getPiece() == ' ')
                     {
                         // Set player one's piece to this piece
                         p = move.charAt(0);
+                        setSecondPlayerPiece();
                     }
 
                     // Get the current move
@@ -308,7 +445,7 @@ public class TicTacToe
                     else
                     {
                         // Set the previous move to the current move
-                        setCXY(move.charAt(0), x, y);
+                        curMove.setMove(move.charAt(0), x, y);
                         break;
                     }
                 }
@@ -323,17 +460,22 @@ public class TicTacToe
             }
         }
     }
-    // A function to set the current move of the game
-    public void setCXY(char c, int x, int y)
+    private void setSecondPlayerPiece()
     {
-        this.c = c;
-        this.x = x;
-        this.y = y;
+        if (p == 'X')
+        {
+            b = 'O';
+        }
+        else
+        {
+            b = 'X';
+        }
     }
+
     // A function to move the piece into the table
     public void makeMove()
     {
-        positions[y][x] = c;
+        positions[curMove.getY()][curMove.getX()] = curMove.getPiece();
         board.drawBoard(positions);
         numOfPiece++;
     }
@@ -342,6 +484,34 @@ public class TicTacToe
     // A function to check if the game has reached the end
     public boolean checkEnd()
     {
+        // Check every horizontal line
+        if (checkLeft(positions, p) != GameState.NOT_END)
+        {
+            System.out.println("true left");
+            return true;
+        }
+
+        // Check every horizontal line
+        if (checkDown(positions, p) != GameState.NOT_END)
+        {
+            System.out.println("true down");
+            return true;
+        }
+
+        // Check the diagonal line from top left
+        if(checkDownRight(positions, p) != GameState.NOT_END)
+        {
+            System.out.println("true down-left");
+            return true;
+        }
+
+        // Check the diagonal line from bottom left
+        if (checkUpRight(positions, p) != GameState.NOT_END)
+        {
+            System.out.println("true up-left");
+            return true;
+        }
+
         if (numOfPiece == maxPiece)
         {
             System.out.println("tie");
@@ -349,49 +519,98 @@ public class TicTacToe
             return true;
         }
 
-        // Check every horizontal line
-        if (goingLeft(positions, p) != GameState.NOT_END)
-        {
-            System.out.println("true left");
-            return true;
-        }
-
-        // Check every vertical line
-        if (goingDown(positions, p) != GameState.NOT_END)
-        {
-            System.out.println("true down");
-            return true;
-        }
-        // Check the diagonal line from top left
-        if(goingDownRight(positions, p) != GameState.NOT_END)
-        {
-            System.out.println("true down-left");
-            return true;
-        }
-
-        // Check the diagonal line from bottom left
-        if (goingUpRight(positions, p) != GameState.NOT_END)
-        {
-            System.out.println("true up-left");
-            return true;
-        }
+        System.out.println("No one wins yet");
         return false;
     }
 
+    // A function to check every horizontal line
+    private GameState checkLeft(char[][] board, char p)
+    {
+        // Check every horizontal line
+        for (int y = 0; y < size; y++)
+        {
+            GameState gameState = goingLeft(board,p,y);
+            if(gameState != GameState.NOT_END)
+            {
+                return gameState;
+            }
+        }
+
+        return GameState.NOT_END;
+    }
+    // A function to check one horizontal line
+    private GameState goingLeft(char[][] board, char p, int y)
+    {
+        char c = board[y][0];
+        if (c == ' ')
+        {
+            return GameState.NOT_END;
+        }
+
+        // For one specific horizontal line
+        for (int x = 1; x < size; x++)
+        {
+            if (c != board[y][x])
+            {
+                return GameState.NOT_END;
+            }
+        }
+
+        // Set the end game based on the piece the function is checking
+        return setState(c, p);
+    }
+    // A function to check every vertical line
+    private GameState checkDown(char[][] board, char p)
+    {
+        // Checking every vertical line
+        for (int x = 0; x < size; x++)
+        {
+            GameState gameState = goingDown(board,p,x);
+            if(gameState != GameState.NOT_END)
+            {
+                return gameState;
+            }
+        }
+
+        return GameState.NOT_END;
+    }
+    // A function to check one vertical line
+    private GameState goingDown(char[][] board, char p, int x)
+    {
+        char c = board[0][x];
+        if (c == ' ')
+        {
+            return GameState.NOT_END;
+        }
+
+        // For one specific horizontal line
+        for (int y = 1; y < size; y++)
+        {
+            if (c != board[y][x])
+            {
+                return GameState.NOT_END;
+            }
+        }
+
+        // Set the end game based on the piece the function is checking
+        return setState(c, p);
+    }
     // A function to set the final state of the game
     // Depending on the last move has made
     private GameState setState(char c, char p)
     {
+        // If the winning piece is the same as the first player
         if (c == p)
         {
+            // The first player wins
             gameState = GameState.WIN;
-            return gameState;
         }
         else
         {
+            // The first player loses
             gameState = GameState.LOSE;
-            return gameState;
         }
+        return gameState;
     }
 
     // A function to set the final state of the game
@@ -401,56 +620,12 @@ public class TicTacToe
         this.gameState = gameState;
     }
 
-    // A function to return the game's state horizontally
-    private GameState goingLeft(char[][] board, char p)
+    // A function to check if the game ends on one row
+
+
+    private GameState checkDownRight(char[][] positions, char p)
     {
-        char c = ' ';
-        // Checking every horizontal line
-        for (int y = 0; y < size; y++)
-        {
-            c = board[y][0];
-            if (c == ' ')
-            {
-                return GameState.NOT_END;
-            }
-
-            for (int x = 1; x < size; x++)
-            {
-                if (c != board[y][x])
-                {
-                    return GameState.NOT_END;
-                }
-            }
-        }
-
-        return setState(c, p);
-    }
-
-    private GameState goingDown(char[][] positions, char p)
-    {
-        char c = ' ';
-        // Checking every vertical line
-        for (int x = 0; x < size; x++)
-        {
-            c = positions[y][0];
-            if (c == ' ')
-            {
-                return GameState.NOT_END;
-            }
-            for (int y = 1; y < size; y++)
-            {
-                if (c != positions[y][x])
-                {
-                    return GameState.NOT_END;
-                }
-            }
-        }
-
-        return setState(c, p);
-    }
-
-    private GameState goingDownRight(char[][] positions, char p)
-    {
+        // Represent the piece that the function is checking
         char c = positions[0][0];
         if (c == ' ')
         {
@@ -463,12 +638,13 @@ public class TicTacToe
                 return GameState.NOT_END;
             }
         }
-
+        // Set the end game based on the piece the function is checking
         return setState(c, p);
     }
 
-    private GameState goingUpRight(char[][] positions, char p)
+    private GameState checkUpRight(char[][] positions, char p)
     {
+        // Represent the piece that the function is checking
         char c = positions[0][size-1];
         if (c == ' ')
         {
@@ -482,7 +658,7 @@ public class TicTacToe
                 return GameState.NOT_END;
             }
         }
-
+        // Set the end game based on the piece the function is checking
         return setState(c, p);
     }
 }

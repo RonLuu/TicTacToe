@@ -19,7 +19,7 @@ public class Main
         ttt.startOnePlayer();
 
         // for two player
-//        ttt.start();
+        // ttt.start();
 
 
 //        new MyFrame();
